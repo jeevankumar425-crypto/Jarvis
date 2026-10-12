@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f4c5c">
+<title>Jarvis</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Jarvis","short_name":"Jarvis","display":"standalone","background_color":"%230f4c5c","theme_color":"%230f4c5c","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%230f4c5c%22/%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2218%22 fill=%22%23e09f3e%22/%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<style>
+:root{--bg:#eef1f4;--card:#fff;--ink:#14222b;--mute:#5b6b76;--brand:#0f4c5c;--accent:#e09f3e;--line:#d5dce2;--user:#0f4c5c;--userink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d171d;--card:#16252d;--ink:#e6edf1;--mute:#93a4af;--brand:#5fb3c4;--line:#2a3c46;--user:#1d6a7d}}
+:root[data-theme="dark"]{--bg:#0d171d;--card:#16252d;--ink:#e6edf1;--mute:#93a4af;--brand:#5fb3c4;--line:#2a3c46;--user:#1d6a7d}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{height:100%;display:flex;flex-direction:column;max-width:720px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 4px}
+h1{font:600 22px/1.2 Georgia,"Times New Roman",serif;margin:0}
+.ib{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;font-size:14px}
+nav{display:flex;gap:6px;padding:6px 14px;overflow-x:auto}
+nav button{flex:1 0 auto;padding:8px 12px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;font:inherit;font-size:14px}
+nav button[aria-pressed=true]{background:var(--brand);color:#fff;border-color:var(--brand)}
+#cfg,#tasks{padding:0 14px 6px}
+#cfg input,#cfg textarea,dialog input,dialog textarea,dialog select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+#cfg textarea{min-height:64px;resize:vertical}
+#tasks{max-height:30%;overflow:auto}
+.t{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--line);font-size:15px}
+.t.done span{text-decoration:line-through;color:var(--mute)}
+.t small{color:var(--mute)}
+#msgs{flex:1;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:88%;padding:9px 12px;border-radius:14px;overflow-wrap:anywhere}
+.m.user{align-self:flex-end;background:var(--user);color:var(--userink);border-bottom-right-radius:4px}
+.m.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+.m a{color:var(--brand)}
+.m code{background:var(--bg);padding:1px 4px;border-radius:4px}
+.empty{margin:auto;text-align:center;color:var(--mute);max-width:280px}
+.err{color:#c0392b;font-size:14px}
+.wait{color:var(--mute);font-style:italic}
+form{display:flex;gap:8px;padding:8px 14px 12px}
+form textarea{flex:1;max-height:120px;min-height:44px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;resize:none}
+form button{background:var(--accent);color:#1a1205;border:0;border-radius:12px;padding:0 18px;font:600 16px system-ui}
+form button:disabled{opacity:.5}
+dialog{max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);width:min(92vw,420px)}
+dialog label{display:block;margin:10px 0 4px;font-size:14px;color:var(--mute)}
+dialog p{font-size:13px;color:var(--mute)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.m img{max-width:100%;border-radius:8px;display:block;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>Jarvis</h1><div><button class="ib" id="vo"></button> <button class="ib" id="clr">Clear</button> <button class="ib" id="gear">Settings</button></div></header>
+  <nav id="tabs"></nav>
+  <div id="cfg"></div>
+  <div id="tasks"></div>
+  <div id="msgs"></div>
+  <form id="f"><textarea id="in" rows="1" placeholder="Message"></textarea><button type="button" id="mic" class="ib">Mic</button><button id="go">Send</button></form>
+</div>
+<dialog id="set">
+  <h2 style="margin:0 0 4px;font:600 18px Georgia,serif">Settings</h2>
+  <label for="prov">Provider</label>
+  <select id="prov"><option value="gemini">Gemini (free tier)</option><option value="groq">Groq (free tier)</option><option value="anthropic">Anthropic</option></select>
+  <label for="gkey">Gemini API key</label>
+  <input id="gkey" type="password" autocomplete="off" placeholder="AIza...">
+  <label for="gmodel">Gemini model</label>
+  <input id="gmodel" autocomplete="off">
+  <label for="okey">Groq API key</label>
+  <input id="okey" type="password" autocomplete="off" placeholder="gsk_...">
+  <label for="omodel">Groq model</label>
+  <input id="omodel" autocomplete="off">
+  <label for="key">Anthropic API key (optional)</label>
+  <input id="key" type="password" autocomplete="off" placeholder="sk-ant-...">
+  <label for="model">Model</label>
+  <input id="model" autocomplete="off">
+  <label for="mem">What Jarvis knows about you (one fact per line)</label>
+  <textarea id="mem" rows="4"></textarea>
+  <p>Your keys stay on this device and are sent only to the provider you pick. Gemini's free tier has daily limits.</p>
+  <button class="ib" id="save">Save</button> <button class="ib" id="close">Cancel</button>
+</dialog>
+<script>
+const $=s=>document.querySelector(s);
+const S={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const MODEL="claude-sonnet-5-5";
+const MODES={
+  research:{label:"Research",hint:"Ask about any topic. I search the web and give a short, sourced summary."},
+  scholar:{label:"Scholar",hint:"Ask for a decision or deep analysis. I give options, my pick, reasons and my confidence."},
+  tasks:{label:"Tasks",hint:"Tell me what to remember or do, like \"add call dentist Friday\" or \"what's open?\""},
+  chat:{label:"Chat",hint:"Set a subject above, then ask me anything about it."},
+  custom:{label:"Custom",hint:"Write your own instructions above, then talk to the agent you described."}
+};
+let mode=S.get("mode","research"), busy=false, err="";
+let tasks=S.get("tasks",[]);
+const msgs={}; const saved=S.get("hist",{});
+for(const k in saved) msgs[k]=saved[k];
+const textOf=m=>typeof m.content==="string"?m.content:m.content.filter(b=>b.type==="text").map(b=>b.text).join("\n");
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const fmt=s=>esc(s).replace(/!\[([^\]]*)\]\((https?:[^\s)]+)\)/g,'<img src="$2" alt="$1" loading="lazy">').replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/(?<!["'=])(https?:\/\/[^\s<)]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,"<br>");
+
+const TASK_TOOLS=[
+ {name:"add_task",description:"Add a task to the user's list.",input_schema:{type:"object",properties:{title:{type:"string"},due:{type:"string",description:"Optional due date or time"}},required:["title"]}},
+ {name:"list_tasks",description:"List all tasks with ids and status.",input_schema:{type:"object",properties:{}}},
+ {name:"complete_task",description:"Mark a task done by id.",input_schema:{type:"object",properties:{id:{type:"number"}},required:["id"]}}
+];
+const COMMON=[
+ {name:"image_search",description:"Find openly licensed images on the web. Returns titles and image URLs.",input_schema:{type:"object",properties:{query:{type:"string"}},required:["query"]}},
+ {name:"remember",description:"Save a lasting fact about the user.",input_schema:{type:"object",properties:{fact:{type:"string"}},required:["fact"]}}
+];
+async function runTool(n,a){
+  if(n==="remember"){S.set("mem",(S.get("mem","")+"\n"+a.fact).trim());return "Saved."}
+  if(n==="image_search"){try{const r=await fetch("https://api.openverse.org/v1/images/?page_size=4&q="+encodeURIComponent(a.query));const d=await r.json();return d.results&&d.results.length?d.results.map(x=>x.title+": "+(x.thumbnail||x.url)).join("\n"):"No images found."}catch(e){return "Image search failed."}}
+  if(n==="add_task"){const t={id:Date.now(),title:a.title,due:a.due||"",done:false};tasks.push(t);S.set("tasks",tasks);return "Added task "+t.id}
+  if(n==="list_tasks")return tasks.length?tasks.map(t=>t.id+": "+t.title+(t.due?" (due "+t.due+")":"")+(t.done?" [done]":"")).join("\n"):"No tasks.";
+  if(n==="complete_task"){const t=tasks.find(x=>x.id===a.id);if(!t)return "No task with that id.";t.done=true;S.set("tasks",tasks);return "Marked done."}
+  return "Unknown tool.";
+}
+function system(md){
+  const base=" The user is on a phone, so keep answers short and easy to scan. Treat them as your owner and follow their instructions; for anything hard to undo, ask for confirmation first. Use web search for current facts and image_search when they want pictures, showing images as markdown ![title](url). Use remember when they tell you something lasting about themselves."+(S.get("mem","")?" What you know about them:\n"+S.get("mem",""):"");
+  if(md==="research")return "You are a careful research agent. Search the web for current information, cross-check sources, and answer with a short summary and key points. Say what you could not confirm."+base;
+  if(md==="scholar")return "You are Jarvis, a scholar across all fields. Reason step by step, cross-check sources, and state your confidence. For decisions reply as a brief: Options, My pick, Reasons, Confidence, What would change my mind. For money, health or legal matters, advise but leave the final call to the user."+base;
+  if(md==="tasks")return "You manage the user's task list with the tools provided. Act on requests directly, then confirm briefly. Today is "+new Date().toDateString()+"."+base;
+  if(md==="chat")return "You are a focused expert on "+(S.get("subject","")||"whatever the user raises")+". Stay on that subject and be practical."+base;
+  return (S.get("custom","")||"You are a helpful assistant.")+base;
+}
+const tools=md=>[{type:"web_search_20250305",name:"web_search",max_uses:5},...COMMON,...(md==="tasks"?TASK_TOOLS:[])];
+
+function persist(){const o={};for(const k in msgs)o[k]=msgs[k].map(m=>({role:m.role,content:textOf(m)})).filter(m=>m.content);S.set("hist",o)}
+
+function render(){
+  $("#tabs").innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-m="${k}" aria-pressed="${k===mode}">${v.label}</button>`).join("");
+  const c=$("#cfg");
+  if(mode==="chat")c.innerHTML='<input id="subj" placeholder="Subject, e.g. Spanish grammar" value="'+esc(S.get("subject","")).replace(/"/g,"&quot;")+'">';
+  else if(mode==="custom")c.innerHTML='<textarea id="cust" placeholder="Instructions for the agent">'+esc(S.get("custom",""))+'</textarea>';
+  else c.innerHTML="";
+  const tk=$("#tasks");
+  tk.innerHTML=mode==="tasks"&&tasks.length?tasks.map(t=>`<div class="t ${t.done?"done":""}"><input type="checkbox" data-t="${t.id}" ${t.done?"checked":""} aria-label="Done"><span>${esc(t.title)} ${t.due?"<small>"+esc(t.due)+"</small>":""}</span></div>`).join(""):"";
+  const list=(msgs[mode]||[]).filter(m=>textOf(m));
+  let h=list.map(m=>`<div class="m ${m.role}">${fmt(textOf(m))}</div>`).join("");
+  if(!list.length)h=`<div class="empty">${MODES[mode].hint}</div>`;
+  if(busy)h+='<div class="wait">Working...</div>';
+  if(err)h+=`<div class="err">${esc(err)}</div>`;
+  const box=$("#msgs");box.innerHTML=h;box.scrollTop=box.scrollHeight;
+  $("#go").disabled=busy;$("#vo").textContent=talk?"Voice on":"Voice off";
+}
+
+async function send(){
+  const text=$("#in").value.trim();if(!text||busy)return;
+  if(!S.get({gemini:"gkey",groq:"okey",anthropic:"key"}[S.get("prov","gemini")],"")){openSet();return}
+  $("#in").value="";err="";
+  const md=mode,m=msgs[md]||(msgs[md]=[]);
+  m.push({role:"user",content:text});busy=true;render();
+  try{
+    if(S.get("prov","gemini")==="gemini")await sendG(md,m,text);else if(S.get("prov","gemini")==="groq")await sendO(md,m,text);else
+    for(let i=0;i<6;i++){
+      const body={model:S.get("model",MODEL),max_tokens:2000,system:system(md),messages:m};
+      const t=tools(md);if(t.length)body.tools=t;
+      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":S.get("key",""),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
+      const d=await r.json();
+      if(!r.ok)throw new Error((d.error&&d.error.message)||("Request failed ("+r.status+")"));
+      m.push({role:"assistant",content:d.content});render();
+      if(d.stop_reason==="tool_use"){
+        const res=await Promise.all(d.content.filter(b=>b.type==="tool_use").map(async b=>({type:"tool_result",tool_use_id:b.id,content:await runTool(b.name,b.input)})));
+        m.push({role:"user",content:res});continue;
+      }
+      if(d.stop_reason==="pause_turn")continue;
+      speak(textOf(m[m.length-1]));break;
+    }
+  }catch(e){err=e.message+". Check your API key and model in Settings."}
+  busy=false;persist();render();
+}
+
+const FN_RE=/\b(images?|pictures?|photos?|pics?|remember|my name is|i am|i'm|i live in)\b/i;
+async function sendG(md,m,text){
+  const g=m.filter(x=>textOf(x)).map(x=>({role:x.role==="user"?"user":"model",parts:[{text:textOf(x)}]}));
+  const fn=md==="tasks"||FN_RE.test(text);
+  const decl=[...COMMON,...(md==="tasks"?TASK_TOOLS:[])].map(t=>{const o={name:t.name,description:t.description};if(Object.keys(t.input_schema.properties).length)o.parameters=JSON.parse(JSON.stringify(t.input_schema).replace(/"type":"(\w+)"/g,(a,b)=>'"type":"'+b.toUpperCase()+'"'));return o});
+  let out="";
+  for(let i=0;i<6;i++){
+    const body={systemInstruction:{parts:[{text:system(md)}]},contents:g,tools:fn?[{functionDeclarations:decl}]:[{google_search:{}}]};
+    const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+S.get("gmodel","gemini-flash-latest")+":generateContent?key="+encodeURIComponent(S.get("gkey","")),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok)throw new Error((d.error&&d.error.message)||("Request failed ("+r.status+")"));
+    const c=d.candidates&&d.candidates[0];
+    if(!c||!c.content)throw new Error(c&&c.finishReason?"No answer ("+c.finishReason+")":"No answer returned");
+    const parts=c.content.parts||[];
+    g.push({role:"model",parts});
+    const calls=parts.filter(p=>p.functionCall);
+    if(calls.length){
+      const rs=await Promise.all(calls.map(async p=>({functionResponse:{name:p.functionCall.name,response:{result:await runTool(p.functionCall.name,p.functionCall.args||{})}}})));
+      g.push({role:"user",parts:rs});continue;
+    }
+    out=parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join("");
+    const ch=((c.groundingMetadata&&c.groundingMetadata.groundingChunks)||[]).filter(x=>x.web).slice(0,3);
+    if(ch.length)out+="\n\nSources:\n"+ch.map(x=>x.web.title+" "+x.web.uri).join("\n");
+    break;
+  }
+  m.push({role:"assistant",content:out||"(No reply)"});
+  speak(out);
+}
+async function oReq(g,tl){const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+S.get("okey","")},body:JSON.stringify({model:S.get("omodel","llama-3.3-70b-versatile"),messages:g,tools:tl,max_tokens:2000})});return {r,d:await r.json()}}
+async function pickO(){try{const r=await fetch("https://api.groq.com/openai/v1/models",{headers:{authorization:"Bearer "+S.get("okey","")}});const d=await r.json();const ids=(d.data||[]).map(x=>x.id).filter(x=>!/whisper|tts|guard|orpheus|embed|compound|safeguard/i.test(x));const pick=ids.find(x=>/gpt-oss-120b/.test(x))||ids.find(x=>/llama.*70b/i.test(x))||ids.find(x=>/gpt-oss/.test(x))||ids[0];if(pick)S.set("omodel",pick);return pick}catch(e){return null}}
+async function sendO(md,m,text){
+  const g=[{role:"system",content:system(md)+" You have no web search in this mode. Answer from your own knowledge and say when your information may be out of date."},...m.filter(x=>textOf(x)).map(x=>({role:x.role==="user"?"user":"assistant",content:textOf(x)}))];
+  const tl=[...COMMON,...(md==="tasks"?TASK_TOOLS:[])].map(t=>({type:"function",function:{name:t.name,description:t.description,parameters:t.input_schema}}));
+  let out="";
+  for(let i=0;i<6;i++){
+    let {r,d}=await oReq(g,tl);
+    if(!r.ok&&/does not exist|decommission|not found/i.test((d.error&&d.error.message)||"")&&await pickO())({r,d}=await oReq(g,tl));
+    if(!r.ok)throw new Error((d.error&&d.error.message)||("Request failed ("+r.status+")"));
+    const msg=d.choices&&d.choices[0]&&d.choices[0].message;
+    if(!msg)throw new Error("No answer returned");
+    if(msg.tool_calls&&msg.tool_calls.length){
+      g.push(msg);
+      for(const c of msg.tool_calls){let a={};try{a=JSON.parse(c.function.arguments||"{}")}catch(e){}
+        g.push({role:"tool",tool_call_id:c.id,content:String(await runTool(c.function.name,a))})}
+      continue;
+    }
+    out=msg.content||"";break;
+  }
+  m.push({role:"assistant",content:out||"(No reply)"});
+  speak(out);
+}
+function openSet(){$("#key").value=S.get("key","");$("#model").value=S.get("model",MODEL);$("#mem").value=S.get("mem","");$("#prov").value=S.get("prov","gemini");$("#gkey").value=S.get("gkey","");$("#gmodel").value=S.get("gmodel","gemini-flash-latest");$("#okey").value=S.get("okey","");$("#omodel").value=S.get("omodel","llama-3.3-70b-versatile");$("#set").showModal()}
+$("#gear").onclick=openSet;
+$("#close").onclick=()=>$("#set").close();
+$("#save").onclick=()=>{S.set("key",$("#key").value.trim());S.set("model",$("#model").value.trim()||MODEL);S.set("mem",$("#mem").value.trim());S.set("prov",$("#prov").value);S.set("gkey",$("#gkey").value.trim());S.set("gmodel",$("#gmodel").value.trim()||"gemini-flash-latest");S.set("okey",$("#okey").value.trim());S.set("omodel",$("#omodel").value.trim()||"llama-3.3-70b-versatile");$("#set").close()};
+$("#clr").onclick=()=>{msgs[mode]=[];err="";persist();render()};
+$("#f").onsubmit=e=>{e.preventDefault();send()};
+$("#in").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey&&matchMedia("(hover:hover)").matches){e.preventDefault();send()}};
+$("#tabs").onclick=e=>{const b=e.target.closest("button");if(!b||busy)return;mode=b.dataset.m;S.set("mode",mode);err="";render()};
+$("#cfg").oninput=e=>{if(e.target.id==="subj")S.set("subject",e.target.value);if(e.target.id==="cust")S.set("custom",e.target.value)};
+$("#tasks").onchange=e=>{const id=+e.target.dataset.t;const t=tasks.find(x=>x.id===id);if(t){t.done=e.target.checked;S.set("tasks",tasks);render()}};
+let talk=S.get("talk",true);
+function speak(t){if(!talk||!window.speechSynthesis)return;speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t.replace(/!\[[^\]]*\]\([^)]*\)|https?:\/\/\S+|[*`#]/g,"")))}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function listen(){if(!SR){err="Voice input isn't supported in this browser.";render();return}const r=new SR(),b=$("#mic");r.lang=navigator.language||"en-US";r.onresult=e=>{$("#in").value=e.results[0][0].transcript;send()};r.onerror=()=>{err="Couldn't hear you. Check the microphone permission.";render()};r.onend=()=>{b.textContent="Mic"};b.textContent="Listening...";r.start()}
+$("#mic").onclick=listen;
+$("#vo").onclick=()=>{talk=!talk;S.set("talk",talk);if(!talk&&window.speechSynthesis)speechSynthesis.cancel();render()};
+render();
+</script>
+</body>
+</html>
