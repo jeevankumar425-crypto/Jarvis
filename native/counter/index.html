@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 30vh;
+      background-color: #f0f0f0;
+    }
+    #count {
+      font-size: 4rem;
+      margin: 20px;
+    }
+    .btn {
+      font-size: 2rem;
+      padding: 20px 40px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #4CAF50;
+      color: white;
+    }
+    #resetBtn {
+      background-color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <div id="count">0</div>
+  <button id="incBtn" class="btn">+ Increment</button>
+  <button id="resetBtn" class="btn">Reset</button>
+
+  <script>
+    let count = 0;
+    const countEl = document.getElementById('count');
+    document.getElementById('incBtn').addEventListener('click', () => {
+      count++;
+      countEl.textContent = count;
+    });
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      count = 0;
+      countEl.textContent = count;
+    });
+  </script>
+</body>
+</html>
