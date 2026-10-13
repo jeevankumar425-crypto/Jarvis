@@ -1,6 +1,9 @@
 name: Build Jarvis APK
 on:
   push:
+    paths-ignore:
+      - 'native/**'
+      - 'apps/**'
   workflow_dispatch:
 permissions:
   contents: write
