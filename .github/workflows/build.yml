@@ -1,0 +1,249 @@
+name: Build Jarvis APK
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: actions/cache@v4
+        with:
+          path: jarvis.keystore
+          key: jarvis-keystore-v1
+      - name: Create signing key once
+        run: |
+          [ -f jarvis.keystore ] || keytool -genkeypair -keystore jarvis.keystore -storepass jarvis123 -keypass jarvis123 -alias jarvis -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Jarvis"
+      - name: Write Android project
+        run: |
+          mkdir -p proj/app/src/main/java/com/jarvis/app proj/app/src/main/assets
+          cat > proj/settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = 'Jarvis'
+          include ':app'
+          EOF
+          cat > proj/build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+          cat > proj/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g
+          android.nonTransitiveRClass=true
+          EOF
+          cat > proj/app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.jarvis.app'
+            compileSdk 34
+            defaultConfig {
+              applicationId 'com.jarvis.app'
+              minSdk 29
+              targetSdk 34
+              versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+              versionName '1.0'
+            }
+            signingConfigs { release { storeFile file('jarvis.keystore'); storePassword 'jarvis123'; keyAlias 'jarvis'; keyPassword 'jarvis123' } }
+            buildTypes { release { signingConfig signingConfigs.release } }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            lint { checkReleaseBuilds false; abortOnError false }
+          }
+          EOF
+          cat > proj/app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:label="Jarvis" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          cat > proj/app/src/main/assets/inject.js <<'EOF'
+          if(!window.__j){window.__j={els:[],
+           snap(){this.els=[];const q='a[href],button,input,select,textarea,[role=button],[onclick]';const out=[];
+            document.querySelectorAll(q).forEach(e=>{const r=e.getBoundingClientRect();if(r.width<2||r.height<2||getComputedStyle(e).visibility==='hidden'||this.els.length>=60)return;
+             const t=(e.innerText||e.value||e.placeholder||e.getAttribute('aria-label')||e.title||'').trim().slice(0,60);
+             this.els.push(e);out.push((this.els.length-1)+': '+e.tagName.toLowerCase()+(e.type?'['+e.type+']':'')+' '+t)});
+            return 'URL: '+location.href+'\nTITLE: '+document.title+'\nTEXT: '+document.body.innerText.replace(/\s+/g,' ').slice(0,5000)+'\nELEMENTS:\n'+out.join('\n')},
+           click(i){const e=this.els[i];if(!e)return 'No such element; read the page again.';e.scrollIntoView({block:'center'});e.click();return 'Clicked '+i},
+           type(i,t,s){const e=this.els[i];if(!e)return 'No such element; read the page again.';if(e.type==='password')return 'Blocked: the user must type passwords themselves.';
+            e.focus();const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(e),'value');if(d&&d.set)d.set.call(e,t);else e.value=t;
+            e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));
+            if(s){if(e.form){if(e.form.requestSubmit)e.form.requestSubmit();else e.form.submit()}else e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))}
+            return 'Typed into '+i},
+           scroll(d){window.scrollBy(0,(d==='up'?-1:1)*innerHeight*0.8);return 'Scrolled '+d}}}
+          EOF
+          cat > proj/app/src/main/java/com/jarvis/app/MainActivity.java <<'EOF'
+          package com.jarvis.app;
+          import android.app.Activity;
+          import android.content.*;
+          import android.net.Uri;
+          import android.os.*;
+          import android.provider.MediaStore;
+          import android.speech.RecognizerIntent;
+          import android.view.*;
+          import android.webkit.*;
+          import android.widget.*;
+          import org.json.*;
+          import java.io.*;
+          import java.net.*;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+            WebView ui, br; Button back; ValueCallback<Uri[]> chooser; String inj = "";
+            Handler h = new Handler(Looper.getMainLooper()); int loadId = 0;
+
+            @Override protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              try { InputStream is = getAssets().open("inject.js"); byte[] bs = new byte[is.available()]; is.read(bs); is.close(); inj = new String(bs, "UTF-8") + ";"; } catch (Exception e) {}
+              FrameLayout root = new FrameLayout(this);
+              ui = mk(true); br = mk(false); br.setVisibility(View.GONE);
+              back = new Button(this); back.setText("Back to Jarvis"); back.setVisibility(View.GONE);
+              back.setOnClickListener(v -> show(false));
+              root.addView(ui); root.addView(br);
+              root.addView(back, new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+              setContentView(root);
+              ui.addJavascriptInterface(new Bridge(), "Android");
+              ui.loadUrl("file:///android_asset/index.html");
+            }
+
+            WebView mk(boolean main) {
+              WebView w = new WebView(this); WebSettings s = w.getSettings();
+              s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true);
+              if (main) { s.setAllowUniversalAccessFromFileURLs(true); s.setAllowFileAccessFromFileURLs(true); }
+              w.setWebViewClient(new WebViewClient() {
+                @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                  String u = r.getUrl().toString();
+                  if (u.startsWith("http") || u.startsWith("file:")) return false;
+                  launch(u); return true;
+                }
+                @Override public void onPageFinished(WebView v, String u) {
+                  if (v == br && loadId != 0) { int id = loadId; loadId = 0; snap(id, ""); }
+                }
+              });
+              w.setWebChromeClient(new WebChromeClient() {
+                @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                  chooser = cb;
+                  try { startActivityForResult(p.createIntent(), 2); } catch (Exception e) { chooser = null; return false; }
+                  return true;
+                }
+              });
+              return w;
+            }
+
+            void show(boolean s) { br.setVisibility(s ? View.VISIBLE : View.GONE); back.setVisibility(s ? View.VISIBLE : View.GONE); }
+
+            @Override public void onBackPressed() {
+              if (br.getVisibility() == View.VISIBLE) { if (br.canGoBack()) br.goBack(); else show(false); }
+              else if (ui.canGoBack()) ui.goBack(); else super.onBackPressed();
+            }
+
+            void launch(String u) {
+              try {
+                Intent i = u.startsWith("intent:") ? Intent.parseUri(u, Intent.URI_INTENT_SCHEME) : new Intent(Intent.ACTION_VIEW, Uri.parse(u));
+                i.setComponent(null); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i);
+              } catch (Exception e) { Toast.makeText(this, "Couldn't open that: " + e.getMessage(), Toast.LENGTH_LONG).show(); }
+            }
+
+            String unq(String v) { try { return String.valueOf(new JSONTokener(v).nextValue()); } catch (Exception e) { return String.valueOf(v); } }
+            void js(String s) { h.post(() -> ui.evaluateJavascript(s, null)); }
+            void res(int id, String r) { js("window.__bres(" + id + "," + JSONObject.quote(r) + ")"); }
+            void snap(int id, String pre) { br.evaluateJavascript(inj + "window.__j.snap()", v -> res(id, pre + unq(v))); }
+            void ev(int id, String code) {
+              br.evaluateJavascript(inj + code, v -> { String p = unq(v) + "\n"; h.postDelayed(() -> snap(id, p), 1800); });
+            }
+
+            void doBrowse(int id, String cmd, String args) {
+              try {
+                JSONObject a = new JSONObject(args);
+                switch (cmd) {
+                  case "open": {
+                    String u = a.getString("url"); if (!u.startsWith("http")) u = "https://" + u;
+                    show(true); loadId = id; br.loadUrl(u);
+                    h.postDelayed(() -> { if (loadId == id) { loadId = 0; snap(id, ""); } }, 15000); break; }
+                  case "read": snap(id, ""); break;
+                  case "click": ev(id, "window.__j.click(" + a.getInt("id") + ")"); break;
+                  case "type": ev(id, "window.__j.type(" + a.getInt("id") + "," + JSONObject.quote(a.getString("text")) + "," + a.optBoolean("submit") + ")"); break;
+                  case "scroll": ev(id, "window.__j.scroll(" + JSONObject.quote(a.optString("dir", "down")) + ")"); break;
+                  case "back": br.goBack(); h.postDelayed(() -> snap(id, ""), 1500); break;
+                  default: res(id, "Unknown browser command.");
+                }
+              } catch (Exception e) { res(id, "Error: " + e.getMessage()); }
+            }
+
+            class Bridge {
+              @JavascriptInterface public void browse(int id, String cmd, String args) { h.post(() -> doBrowse(id, cmd, args)); }
+              @JavascriptInterface public void launch(String url) { h.post(() -> MainActivity.this.launch(url)); }
+              @JavascriptInterface public void fetchUrl(int id, String url) {
+                new Thread(() -> {
+                  String r;
+                  try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile Safari/537.36");
+                    c.setConnectTimeout(15000); c.setReadTimeout(15000);
+                    BufferedReader rd = new BufferedReader(new InputStreamReader(c.getInputStream()));
+                    StringBuilder sb = new StringBuilder(); String l;
+                    while ((l = rd.readLine()) != null && sb.length() < 400000) sb.append(l).append('\n');
+                    r = sb.toString().replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", "").replaceAll("(?s)<[^>]+>", " ").replaceAll("\\s+", " ").trim();
+                    if (r.length() > 8000) r = r.substring(0, 8000);
+                  } catch (Exception e) { r = "Fetch failed: " + e.getMessage(); }
+                  res(id, r);
+                }).start();
+              }
+              @JavascriptInterface public void listen() {
+                h.post(() -> {
+                  Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                  i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                  try { startActivityForResult(i, 1); } catch (Exception e) { js("window.onVoice&&onVoice('')"); }
+                });
+              }
+              @JavascriptInterface public String saveFile(String name, String text) {
+                try {
+                  ContentValues v = new ContentValues();
+                  v.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                  v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                  Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                  OutputStream o = getContentResolver().openOutputStream(u); o.write(text.getBytes("UTF-8")); o.close();
+                  return "Saved to the Downloads folder as " + name;
+                } catch (Exception e) { return "Save failed: " + e.getMessage(); }
+              }
+            }
+
+            @Override protected void onActivityResult(int rq, int rs, Intent d) {
+              if (rq == 1) {
+                String t = "";
+                if (rs == RESULT_OK && d != null) { ArrayList<String> l = d.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS); if (l != null && !l.isEmpty()) t = l.get(0); }
+                js("window.onVoice&&onVoice(" + JSONObject.quote(t) + ")");
+              } else if (rq == 2 && chooser != null) {
+                chooser.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(rs, d)); chooser = null;
+              }
+            }
+          }
+          EOF
+      - name: Build APK
+        run: |
+          cp index.html proj/app/src/main/assets/index.html
+          cp jarvis.keystore proj/app/jarvis.keystore
+          cd proj && gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-APK
+          path: proj/app/build/outputs/apk/release/app-release.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Jarvis APK (latest)
+          files: proj/app/build/outputs/apk/release/app-release.apk
