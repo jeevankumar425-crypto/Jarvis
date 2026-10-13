@@ -48,7 +48,7 @@ jobs:
               applicationId 'com.jarvis.app'
               minSdk 29
               targetSdk 34
-              versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+              versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
               versionName '1.0'
             }
             signingConfigs { release { storeFile file('jarvis.keystore'); storePassword 'jarvis123'; keyAlias 'jarvis'; keyPassword 'jarvis123' } }
@@ -59,17 +59,7 @@ jobs:
           EOF
           cat > proj/app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:label="Jarvis" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-            </application>
-          </manifest>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"> <uses-permission android:name="android.permission.INTERNET"/> <application android:label="Jarvis" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.Light.NoActionBar"> <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"> <intent-filter> <action android:name="android.intent.action.MAIN"/> <category android:name="android.intent.category.LAUNCHER"/> </intent-filter> </activity> </application> </manifest>
           EOF
           cat > proj/app/src/main/assets/inject.js <<'EOF'
           if(!window.__j){window.__j={els:[],
@@ -233,11 +223,34 @@ jobs:
             }
           }
           EOF
+          mkdir -p proj/app/src/main/res/drawable proj/app/src/main/res/mipmap-anydpi-v26
+          cat > proj/app/src/main/res/drawable/ic_bg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#0F4C5C" android:pathData="M0,0h108v108h-108z"/>
+          </vector>
+          EOF
+          cat > proj/app/src/main/res/drawable/ic_fg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#E09F3E" android:fillType="evenOdd" android:pathData="M54,28a26,26 0 1,1 0,52a26,26 0 1,1 0,-52z M54,35a19,19 0 1,0 0,38a19,19 0 1,0 0,-38z"/>
+            <path android:fillColor="#FFFFFF" android:pathData="M54,46a8,8 0 1,1 0,16a8,8 0 1,1 0,-16z"/>
+          </vector>
+          EOF
+          cat > proj/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@drawable/ic_bg"/>
+            <foreground android:drawable="@drawable/ic_fg"/>
+          </adaptive-icon>
+          EOF
       - name: Build APK
+        shell: bash
         run: |
           cp index.html proj/app/src/main/assets/index.html
           cp jarvis.keystore proj/app/jarvis.keystore
-          cd proj && gradle assembleRelease --no-daemon
+          cd proj && gradle assembleRelease --no-daemon --console=plain 2>&1 | tee ../build.log
+      - name: Show errors
+        if: failure()
+        run: |
+          (grep -E "^e: |error:|What went wrong|Execution failed|AAPT" -A3 build.log || tail -15 build.log) | head -16 | while IFS= read -r l; do echo "::error::$l"; done
       - uses: actions/upload-artifact@v4
         with:
           name: Jarvis-APK
