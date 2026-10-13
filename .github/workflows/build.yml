@@ -230,6 +230,10 @@ jobs:
               @JavascriptInterface public void access(int id, String cmd, String args) { h.post(() -> doAccess(id, cmd, args)); }
               @JavascriptInterface public boolean accessOn() { return JarvisAccess.inst != null; }
               @JavascriptInterface public void speak(String t) { h.post(() -> { if (tts != null) tts.speak(t.length() > 3500 ? t.substring(0, 3500) : t, TextToSpeech.QUEUE_FLUSH, null, "j"); }); }
+              @JavascriptInterface public String launchApp(String n) {
+                try { String l = launchByName(n); return l == null ? "No installed app matches \"" + n + "\". Installed apps: " + installedLabels() : "Opened " + l + "."; }
+                catch (Exception e) { return "Could not open it: " + e.getMessage(); }
+              }
               @JavascriptInterface public void openAccessSettings() { h.post(() -> { Intent i = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i); }); }
               @JavascriptInterface public void launch(String url) { h.post(() -> MainActivity.this.launch(url)); }
               @JavascriptInterface public void fetchUrl(int id, String url) {
