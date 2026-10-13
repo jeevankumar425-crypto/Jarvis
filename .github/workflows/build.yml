@@ -48,7 +48,7 @@ jobs:
               applicationId 'com.jarvis.app'
               minSdk 29
               targetSdk 34
-              versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+              versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
               versionName '1.0'
             }
             signingConfigs { release { storeFile file('jarvis.keystore'); storePassword 'jarvis123'; keyAlias 'jarvis'; keyPassword 'jarvis123' } }
@@ -59,17 +59,7 @@ jobs:
           EOF
           cat > proj/app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:label="Jarvis" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-            </application>
-          </manifest>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"> <uses-permission android:name="android.permission.INTERNET"/> <application android:label="Jarvis" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.Light.NoActionBar"> <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"> <intent-filter> <action android:name="android.intent.action.MAIN"/> <category android:name="android.intent.category.LAUNCHER"/> </intent-filter> </activity> </application> </manifest>
           EOF
           cat > proj/app/src/main/assets/inject.js <<'EOF'
           if(!window.__j){window.__j={els:[],
@@ -234,10 +224,15 @@ jobs:
           }
           EOF
       - name: Build APK
+        shell: bash
         run: |
           cp index.html proj/app/src/main/assets/index.html
           cp jarvis.keystore proj/app/jarvis.keystore
-          cd proj && gradle assembleRelease --no-daemon
+          cd proj && gradle assembleRelease --no-daemon --console=plain 2>&1 | tee ../build.log
+      - name: Show errors
+        if: failure()
+        run: |
+          { echo '### Build errors'; echo '```'; grep -E "error:|What went wrong|FAILURE|Could not|not found" -A6 build.log | head -80; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: Jarvis-APK
