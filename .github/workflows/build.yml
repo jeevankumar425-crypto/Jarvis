@@ -103,7 +103,7 @@ jobs:
 
           public class MainActivity extends Activity {
             WebView ui, br; Button back; ValueCallback<Uri[]> chooser; String inj = "";
-            Handler h = new Handler(Looper.getMainLooper()); int loadId = 0; TextToSpeech tts;
+            Handler h = new Handler(Looper.getMainLooper()); int loadId = 0; TextToSpeech tts; boolean carMode = false;
 
             @Override protected void onCreate(Bundle b) {
               super.onCreate(b);
@@ -153,7 +153,10 @@ jobs:
               return w;
             }
 
-            void show(boolean s) { br.setVisibility(s ? View.VISIBLE : View.GONE); back.setVisibility(s ? View.VISIBLE : View.GONE); }
+            void show(boolean s) {
+              if (carMode && s) { br.setVisibility(View.INVISIBLE); back.setVisibility(View.GONE); }
+              else { br.setVisibility(s ? View.VISIBLE : View.GONE); back.setVisibility(s ? View.VISIBLE : View.GONE); }
+            }
 
             @Override public void onBackPressed() {
               if (br.getVisibility() == View.VISIBLE) { if (br.canGoBack()) br.goBack(); else show(false); }
@@ -238,6 +241,7 @@ jobs:
               @JavascriptInterface public boolean accessOn() { return JarvisAccess.inst != null; }
               @JavascriptInterface public void speak(String t) { h.post(() -> { if (tts != null) tts.speak(t.length() > 3500 ? t.substring(0, 3500) : t, TextToSpeech.QUEUE_FLUSH, null, "j"); }); }
               @JavascriptInterface public void stopSpeak() { h.post(() -> { if (tts != null) tts.stop(); }); }
+              @JavascriptInterface public void setCarMode(boolean b) { h.post(() -> { carMode = b; if (b) { back.setVisibility(View.GONE); if (br.getVisibility() == View.VISIBLE) br.setVisibility(View.INVISIBLE); } else show(false); }); }
               @JavascriptInterface public void copy(String t) { h.post(() -> { ((ClipboardManager) getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Jarvis", t)); Toast.makeText(MainActivity.this, "Copied", Toast.LENGTH_SHORT).show(); }); }
               @JavascriptInterface public void kill() { h.post(() -> { try { if (tts != null) tts.stop(); } catch (Exception e) {} finishAndRemoveTask(); android.os.Process.killProcess(android.os.Process.myPid()); }); }
               @JavascriptInterface public String launchApp(String n) {
