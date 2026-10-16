@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stock Lookup</title>
+<style>
+  body {font-family:Arial,Helvetica,sans-serif;max-width:400px;margin:20px auto;padding:10px;border:1px solid #ccc;border-radius:8px;}
+  input,button{width:100%;padding:8px;margin:5px 0;}
+  .result{margin-top:15px;}
+</style>
+</head>
+<body>
+<h2>Live Stock Lookup</h2>
+<label>Ticker Symbol:<input type="text" id="ticker" placeholder="e.g., AAPL"/></label>
+<button onclick="lookup()">Get Quote</button>
+<div class="result" id="output"></div>
+<script>
+async function lookup(){
+  const sym=document.getElementById('ticker').value.trim().toUpperCase();
+  if(!sym){document.getElementById('output').innerText='Enter a ticker.';return;}
+  const url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${sym}`;
+  try{
+    const resp=await fetch(url);
+    const data=await resp.json();
+    const quote=data.quoteResponse.result[0];
+    if(!quote){document.getElementById('output').innerText='No data found.';return;}
+    const price=quote.regularMarketPrice;
+    const change=quote.regularMarketChange;
+    const percent=quote.regularMarketChangePercent;
+    document.getElementById('output').innerHTML=`${sym}: $${price.toFixed(2)}<br>Change: ${change.toFixed(2)} (${percent.toFixed(2)}%)`;
+  }catch(e){
+    document.getElementById('output').innerText='Error fetching data.';
+  }
+}
+</script>
+</body>
+</html>
