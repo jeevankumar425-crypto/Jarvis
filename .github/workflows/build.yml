@@ -4,9 +4,13 @@ on:
     paths-ignore:
       - 'native/**'
       - 'apps/**'
+      - 'backups/**'
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: jarvis-build
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
